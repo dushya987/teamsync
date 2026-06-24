@@ -213,7 +213,7 @@ erDiagram
     string email
     string passwordHash
     string name
-    enum role
+    string role
     datetime createdAt
   }
 
@@ -228,7 +228,7 @@ erDiagram
   ProjectMember {
     string projectId
     string userId
-    enum role
+    string role
   }
 
   Task {
@@ -236,8 +236,8 @@ erDiagram
     string projectId
     string title
     string description
-    enum status
-    enum priority
+    string status
+    string priority
     string assigneeId
     datetime dueDate
     datetime createdAt
@@ -251,9 +251,10 @@ erDiagram
     string body
     datetime createdAt
   }
+```
 
+---
 
-```md
 ## Indexing Note
 
 If the `Task` table grows beyond 1M rows, the most important query path is retrieving tasks by `projectId` with optional filtering by `status` and `assigneeId`, then sorting by `dueDate`. To support this efficiently, I added composite indexes around the most common access patterns instead of only indexing individual columns.
@@ -262,9 +263,20 @@ The main index is:
 
 ```prisma
 @@index([projectId, status, assigneeId])
+```
 
+This helps the API endpoint `GET /projects/:id/tasks` when users filter tasks inside a project by status and assignee. Since `projectId` is always known from the route, it is the leading column. `status` and `assigneeId` follow because they are common filters.
+
+For due date sorting, I also added:
+
+```prisma
+@@index([projectId, dueDate])
+```
+
+This improves project-level task queries sorted by due date. I also included supporting indexes such as `@@index([projectId])` and `@@index([projectId, status])` for simpler filter combinations. These indexes reduce full-table scans and keep task listing responsive as the task table grows.
+
+---
 
 ## Author
 
 Developed as a Full-Stack Software Engineering assessment project using modern web and mobile technologies.
-```
